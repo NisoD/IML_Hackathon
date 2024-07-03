@@ -13,30 +13,30 @@ from sklearn.model_selection import train_test_split
 import click
 import pprint
 
-def load_data(filename, test_size=0.2):
-    logging.info(f"Loading data from {filename}")
-    data = pd.read_csv(filename)
-    print(data.head())
-    logging.info(f"Data loaded: {data.shape[0]} rows, {data.shape[1]} columns")
-    
-    # Split the data
-    train, test = train_test_split(data, test_size=test_size)
-    logging.info(f"Data split into train ({train.shape[0]} rows) and test ({test.shape[0]} rows)")
-    
-    # Save the split data to CSV files
-    train.to_csv('train.csv', index=False)
-    test.to_csv('test.csv', index=False)
-    logging.info("Train and test data saved to 'train.csv' and 'test.csv' respectively")
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+def load_data(file_path):
+    return pd.read_csv(file_path, encoding='ISO-8859-8')
+
+
+def split_data(data):
+    train_data, test_data = train_test_split(data, test_size=0.2, random_state=42)
+    return train_data, test_data
+
+def save_data(train, test):
+    train.to_csv('./data/train.csv', index=False)
+    test.to_csv('./data/test.csv', index=False)
 
 @click.command()
-@click.option('--training-set', type=click.Path(exists=True), required=True, help="Path to the training set")
-@click.option('--test-set', type=click.Path(), required=False, help="Path to the test set")
-@click.option('--out', type=click.Path(), required=False, help="Output directory")
-def main(training_set, test_set=None, out=None):
-    logging.basicConfig(level=logging.INFO)
-    
-    # Load and process the data
-    load_data(training_set)
+@click.argument('file_path', type=click.Path(exists=True))
+def main(file_path):
+    data = load_data(file_path)
+    print(data.shape)
+    train, test = split_data(data)
+    save_data(train, test)
+    logging.info("Data saved to train.csv and test.csv")
+
 
 if __name__ == '__main__':
     main()
