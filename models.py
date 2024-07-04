@@ -11,16 +11,20 @@ from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor, A
 import pandas as pd
 import os
 from sklearn.preprocessing import OneHotEncoder
-def pred_is_0_to_50(y_pred):
+from neural_network import neural_network
+from typing import Tuple
+
+def pred_is_0_to_50(y_pred: np.ndarray) -> np.ndarray:
     # Clip the values to be between 0 and 50 and convert to integers
     y_pred = np.clip(y_pred, 0, 50).astype(int)
     return y_pred
 
 
-def linear_regression(X_train, X_test, y_train, y_test):
+def linear_regression(X_train, X_test, y_train, y_test: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+    # Create a linear regression model
     model = LinearRegression()
     model.fit(X_train, y_train)
-    #round as predictions are integers
+    #round as predictions are integers 0-50 as bus seats in real life
     y_pred = pred_is_0_to_50(np.round(model.predict(X_test)))
     MSE = mean_squared_error(y_test, y_pred)
     print(model.__class__.__name__, MSE)
@@ -28,7 +32,7 @@ def linear_regression(X_train, X_test, y_train, y_test):
 
 
 
-def random_forest(X_train, X_test, y_train, y_test):
+def random_forest(X_train, X_test, y_train, y_test: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
     model = RandomForestRegressor(n_estimators=100, random_state=42)
     model.fit(X_train, y_train)
     y_pred = pred_is_0_to_50(np.round(model.predict(X_test)))
@@ -37,7 +41,7 @@ def random_forest(X_train, X_test, y_train, y_test):
     return y_test, y_pred 
 
 
-def gradient_boosting(X_train, X_test, y_train, y_test):
+def gradient_boosting(X_train, X_test, y_train, y_test: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
     model = GradientBoostingRegressor(n_estimators=100, random_state=42)
     model.fit(X_train, y_train)
     y_pred = pred_is_0_to_50(np.round(model.predict(X_test)))
@@ -46,7 +50,7 @@ def gradient_boosting(X_train, X_test, y_train, y_test):
     return y_test, y_pred 
 
 
-def adaboost(X_train, X_test, y_train, y_test):
+def adaboost(X_train, X_test, y_train, y_test: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
     model = AdaBoostRegressor(n_estimators=50, random_state=42)
     model.fit(X_train, y_train)
     y_pred = pred_is_0_to_50(np.round(model.predict(X_test)))
@@ -54,7 +58,7 @@ def adaboost(X_train, X_test, y_train, y_test):
     print(model.__class__.__name__, MSE)
     return y_test, y_pred 
 
-def create_two_csv_files(trip_id_unique_station, y_test, y_pred, model_name):
+def create_two_csv_files(trip_id_unique_station :pd, y_test :np.ndarray, y_pred: np.ndarray, model_name: str):
     # create two csv in directory - passengares_up
     # if not available mkdir
     if not os.path.exists('passengers_up'):
@@ -64,25 +68,24 @@ def create_two_csv_files(trip_id_unique_station, y_test, y_pred, model_name):
     df.to_csv(f'passengers_up/passengers_up_predictions_{model_name}.csv', index=False)
     pd.DataFrame(y_test).to_csv(f'passengers_up/y_test_{model_name}.csv', index=False)
 
-# One-Hot Encoding
 def train_on_all_models(X_train, X_test, y_train, y_test):
     models = [
-        linear_regression,
-        random_forest,
-        gradient_boosting,
-        adaboost
+        # linear_regression,
+        # random_forest,
+        # gradient_boosting,
+        # adaboost,
+        neural_network
     ]
     
-    # Extract trip_id_unique_station before training
-    trip_id_unique_station_train = X_train["trip_id_unique_station"]
     trip_id_unique_station_test = X_test["trip_id_unique_station"]
-    X_train = X_train.drop(columns=["trip_id_unique_station"])
     X_test = X_test.drop(columns=["trip_id_unique_station"])
+    X_train = X_train.drop(columns=["trip_id_unique_station"])
    
     for model in models:
         y_test, y_pred = model(X_train, X_test, y_train, y_test)
         model_name = model.__name__
         create_two_csv_files(trip_id_unique_station_test, y_test, y_pred, model_name)
+        mse = mean_squared_error(y_test, y_pred)
         print(f"Model: {model_name}")
-        print(f"MSE: {mean_squared_error(y_test, y_pred)}")
+        print(f"MSE: {mse}")
         print("=====================================")
