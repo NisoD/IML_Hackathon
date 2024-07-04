@@ -24,33 +24,6 @@ def load_data(file_path:str)-> pd.DataFrame:
     # return pd.read_csv(file_path, encoding='ISO-8859-8')
     return pd.read_csv(file_path, encoding='utf8')
 
-
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
-from tqdm import tqdm
-import logging
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import mean_squared_error
-import click
-from sklearn.linear_model import LinearRegression
-from typing import Tuple
-from models import train_on_all_models
-from sklearn.preprocessing import StandardScaler
-import click
-from models import train_on_all_models
-"""#####################################
--- usage :python main.py data/train.csv
-"""#####################################
-
-# Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-
-def load_data(file_path:str)-> pd.DataFrame:
-    # return pd.read_csv(file_path, encoding='ISO-8859-8')
-    return pd.read_csv(file_path, encoding='utf8')
-
 def split_data_problem_1(data: pd.DataFrame):
     X = data.drop('passengers_up', axis=1)
     y = data['passengers_up']
@@ -145,22 +118,43 @@ def create_time_diff(data:pd.DataFrame)-> pd.DataFrame:
     data['time_difference'] = data['time_difference'].clip(lower=0)
     return data
 
+def change_part_to_numeric(data:pd.DataFrame)-> pd.DataFrame:
+    if data['part'] == 'א':
+        data['part'] = 1
+    elif data['part'] == 'ב':
+        data['part'] = 2
+    elif data['part'] == 'ג':
+        data['part'] = 3
+    return data
 
 def drop_unused_data(data:pd.DataFrame)-> pd.DataFrame:
-    data.drop(['trip_id', 'trip_id_unique', 
-                       'arrival_time', 'door_closing_time', 'mekadem_nipuach_luz', 
-                       'passengers_continue_menupach'], axis=1, inplace=True)
+    data.drop(['trip_id_unique_station', 'trip_id_unique', 'cluster', 'station_name','arrival_time', 'door_closing_time'], axis=1, inplace=True)
+    return data
+
+def create_hour_of_day(data: pd.DataFrame) -> pd.DataFrame:
+    # Extract the hour of the day from the arrival time
+    data['hour_of_day'] = data['arrival_time'].dt.hour
     return data
     
 def preprocess(data: pd.DataFrame) -> pd.DataFrame:
-    # Drop unnecessary columns
+
+    # Fill NaN values in the data with 0
+    data = data.fillna(0)
+    
+    data['door_closing_time'].fillna(data['arrival_time'])
+
+    data = create_hour_of_day(data)
+    data = change_part_to_numeric(data)
     data = create_time_diff(data)
     data = drop_unused_data(data)
+
+    data['alternative'] = data['alternative'].replace('#',-1)
+
     #  boolean column to numeric
     data['arrival_is_estimated'] = data['arrival_is_estimated'].map({True: 1, False: 0}).fillna(0).astype(int)
 
     # Convert categorical variables to numeric
-    categorical_cols = [ 'direction', 'alternative', 'cluster', 'station_name','part']
+    categorical_cols = [ 'direction', 'alternative']
     for col in categorical_cols:
         data[col] = pd.Categorical(data[col]).codes
     # Fill NaN values with 0 FOR NOW CHANGE IT TO MEAN OR SOMETHING ELSE
