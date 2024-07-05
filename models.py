@@ -58,23 +58,23 @@ def adaboost(X_train, X_test, y_train, y_test: np.ndarray) -> Tuple[np.ndarray, 
     print(model.__class__.__name__, MSE)
     return y_test, y_pred 
 
-def create_two_csv_files(trip_id_unique_station :pd, y_test :np.ndarray, y_pred: np.ndarray, model_name: str):
+def create_two_csv_files(trip_id_unique_station :pd, y_test :np.ndarray, y_pred: np.ndarray, model_name: str,problem_num:int):
     # create two csv in directory - passengares_up
     # if not available mkdir
     if not os.path.exists('passengers_up'):
         os.makedirs('passengers_up')
 
     df = pd.DataFrame({'trip_id_unique_station': trip_id_unique_station, 'passengers_up': y_pred})
-    df.to_csv(f'passengers_up/passengers_up_predictions_{model_name}.csv', index=False)
-    pd.DataFrame(y_test).to_csv(f'passengers_up/y_test_{model_name}.csv', index=False)
+    df.to_csv(f'passengers_up/passengers_up_predictions_{model_name}_problem_num_{problem_num}.csv', index=False)
+    pd.DataFrame(y_test).to_csv(f'passengers_up/y_test_{model_name}_problem_num_{problem_num}.csv', index=False)
 
-def train_on_all_models(X_train, X_test, y_train, y_test):
+def train_on_all_models(X_train, X_test, y_train, y_test,problem_num):
     models = [
-        # linear_regression,
-        # random_forest,
-        # gradient_boosting,
+        linear_regression,
+        random_forest,
+        gradient_boosting,
         # adaboost,
-        neural_network
+        # neural_network
     ]
     
     trip_id_unique_station_test = X_test["trip_id_unique_station"]
@@ -84,7 +84,7 @@ def train_on_all_models(X_train, X_test, y_train, y_test):
     for model in models:
         y_test, y_pred = model(X_train, X_test, y_train, y_test)
         model_name = model.__name__
-        create_two_csv_files(trip_id_unique_station_test, y_test, y_pred, model_name)
+        create_two_csv_files(trip_id_unique_station_test, y_test, y_pred, model_name,problem_num)
         mse = mean_squared_error(y_test, y_pred)
         print(f"Model: {model_name}")
         print(f"MSE: {mse}")
