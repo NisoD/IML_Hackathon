@@ -6,25 +6,24 @@ from sklearn.metrics import mean_squared_error
 import numpy as np
 from tqdm import tqdm
 
-class MLPRegressor(nn.Module):
-    def __init__(self, input_dim, hidden_dim, dropout_rate=0.5):
-        super(MLPRegressor, self).__init__()
-        self.network = nn.Sequential(
-            nn.Linear(input_dim, hidden_dim),
-            nn.ReLU(),
-            nn.Dropout(dropout_rate),
-            nn.Linear(hidden_dim, hidden_dim),
-            nn.ReLU(),
-            nn.Dropout(dropout_rate),
-            nn.Linear(hidden_dim, hidden_dim),
-            nn.ReLU(),
-            nn.Dropout(dropout_rate),
-            nn.Linear(hidden_dim, 1)
-        )
-
+class TransformerRegressor(nn.Module):
+    def __init__(self, input_dim, d_model, nhead, num_layers, dropout=0.1):
+        super(TransformerRegressor, self).__init__()
+        self.embedding = nn.Linear(input_dim, d_model)
+        self.positional_encoding = nn.Parameter(torch.randn(1, 100, d_model))
+        encoder_layer = nn.TransformerEncoderLayer(d_model=d_model, nhead=nhead, dropout=dropout)
+        self.transformer_encoder = nn.TransformerEncoder(encoder_layer, num_layers=num_layers)
+        self.fc_out = nn.Linear(d_model, 1)
+        
     def forward(self, x):
-        return self.network(x)
-class MLPTrainer:
+        x = self.embedding(x)
+        x = x + self.positional_encoding[:, :x.size(1), :]
+        x = self.transformer_encoder(x)
+        x = x.mean(dim=1)  # Global average pooling
+        x = self.fc_out(x)
+        return x
+
+class TransformerTrainer:
     def __init__(self, model, criterion, optimizer, device):
         self.model = model
         self.criterion = criterion
@@ -55,14 +54,7 @@ class MLPTrainer:
                 total_loss += loss.item()
         return total_loss / len(test_loader)
 
-def prepare_data(X_train, X_test, y_train, y_test, batch_size):
-    train_data = TensorDataset(torch.tensor(X_train.values).float(), torch.tensor(y_train.values).float().unsqueeze(1))
-    test_data = TensorDataset(torch.tensor(X_test.values).float(), torch.tensor(y_test.values).float().unsqueeze(1))
-    train_loader = DataLoader(train_data, batch_size=batch_size, shuffle=True)
-    test_loader = DataLoader(test_data, batch_size=batch_size, shuffle=False)
-    return train_loader, test_loader
-
-def neural_network(X_train, X_test, y_train, y_test):
+def transformer_network(X_train, X_test, y_train, y_test):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
     # Hyperparameters
@@ -70,18 +62,20 @@ def neural_network(X_train, X_test, y_train, y_test):
     batch_size = 32
     learning_rate = 0.001
     input_dim = X_train.shape[1]
-    hidden_dim = 128
+    d_model = 128
+    nhead = 8
+    num_layers = 4
 
     # Prepare data
     train_loader, test_loader = prepare_data(X_train, X_test, y_train, y_test, batch_size)
 
     # Initialize model, loss, and optimizer
-    model = MLPRegressor(input_dim, hidden_dim).to(device)
+    model = TransformerRegressor(input_dim, d_model, nhead, num_layers).to(device)
     criterion = nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=learning_rate, weight_decay=1e-4)
 
     # Initialize trainer
-    trainer = MLPTrainer(model, criterion, optimizer, device)
+    trainer = TransformerTrainer(model, criterion, optimizer, device)
 
     # Training loop
     for epoch in range(epochs):
@@ -104,8 +98,6 @@ def neural_network(X_train, X_test, y_train, y_test):
     y_true = np.array(y_true).flatten()
     
     mse = mean_squared_error(y_true, y_pred)
-    print(f"Neural Network - MSE: {mse}")
+    print(f"Transformer Network - MSE: {mse}")
     
     return y_true, y_pred
-
-# 
