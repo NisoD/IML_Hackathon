@@ -14,6 +14,7 @@ from sklearn.preprocessing import StandardScaler
 import click
 from models import train_on_all_models
 from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import LabelEncoder
 """#####################################
 -- usage :python main.py data/train.csv
 """#####################################
@@ -32,6 +33,7 @@ def split_data_problem_1(data: pd.DataFrame):
     y = data['passengers_up']
     
     trip_id_unique_station = X["trip_id_unique_station"].copy()
+    
     X = X.drop("trip_id_unique_station", axis=1)
     
     # Split the data
@@ -70,15 +72,17 @@ def calculate_approx_line_length(data):
                    (last_station['longitude'] - first_station['longitude'])**2)
 
 def preprocess_duration_problem(data: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Series]:
-    # arrival_time to datetime
+    # Convert arrival_time to datetime
     data['arrival_time'] = pd.to_datetime(data['arrival_time'], format='%H:%M:%S')
-    # calc trip duration
+    
+    # Calculate trip duration
     trip_durations = data.groupby('trip_id_unique').agg({
         'arrival_time': ['min', 'max']
     })
     trip_durations.columns = ['start_time', 'end_time']
     trip_durations['trip_duration_minutes'] = (trip_durations['end_time'] - trip_durations['start_time']).dt.total_seconds() / 60
-    # Feature engineering 
+    
+    # Feature engineering
     features = pd.DataFrame()
     features['station_cnt'] = data.groupby("trip_id_unique")["trip_id_unique_station"].nunique()
     features['total_passenger'] = data.groupby("trip_id_unique")["passengers_up"].sum()
@@ -89,23 +93,26 @@ def preprocess_duration_problem(data: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Se
     # Add cluster, direction, and mekadem_nipuach_luz
     features = features.merge(data[["trip_id_unique", "cluster", "direction", "mekadem_nipuach_luz"]].drop_duplicates(), on="trip_id_unique")
     
-    # Encode 
+    # Encode cluster
     label_encoder = LabelEncoder()
     features['cluster'] = label_encoder.fit_transform(features['cluster'])
     
-    # Add station name 
+    # Add station name features
     station_concat = data.groupby("trip_id_unique")["station_name"].agg(lambda x: ', '.join(x)).reset_index()
-    for i, word in enumerate(WORDS_WEIGHT, start=1):
+    for word in WORDS_WEIGHT:
         features[f'station_{word}'] = station_concat['station_name'].str.contains(word, regex=False).astype(int)
     
-    #  aaprox  line length
+    # Calculate approximate line length
     features['line_length_approx'] = data.groupby('trip_id_unique').apply(calculate_approx_line_length)
     
-    #  trip durations 
+    # Merge trip durations
     features = features.merge(trip_durations['trip_duration_minutes'], on='trip_id_unique')
     
-    # Separate features and labels
-    X = features.drop(['trip_duration_minutes', 'trip_id_unique'], axis=1)
+    # Fill NaN values with 0
+    features.fillna(0, inplace=True)
+    
+    # Separate features and target
+    X = features.drop(['trip_duration_minutes'], axis=1)
     y = features['trip_duration_minutes']
     
     return X, y
@@ -144,15 +151,16 @@ def main(file_path):
     # X_train_scaled, X_test_scaled, y_train, y_test = split_data_problem_1(data)
     # train_on_all_models(X_train_scaled, X_test_scaled, y_train, y_test)
     data = load_data(file_path)
-    
     #Problem 1 
-    data = preprocess(data)
-    X_train, X_test, y_train, y_test = split_data_problem_1(data)
+    data_1 = preprocess(data.copy())
+    X_train, X_test, y_train, y_test = split_data_problem_1(data_1)
     train_on_all_models(X_train, X_test, y_train, y_test,problem_num=1)
     
-    #Problem 2
-    X, y = preprocess_duration_problem(data)  
-    X_train, X_test, y_train, y_test = train_test_split(X, y, train_size=0.80, random_state=RANDOM_STATE)
+    # Problem 2
+    data = load_data(file_path)
+    X, y = preprocess_duration_problem(data)  # NEW: Use the new preprocessing function
+    X_train, X_test, y_train, y_test = train_test_split(X, y, train_size=0.8, random_state=RANDOM_STATE)
     train_on_all_models(X_train, X_test, y_train, y_test,problem_num=2)
+
 if __name__ == '__main__':
     main()

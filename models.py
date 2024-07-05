@@ -73,14 +73,21 @@ def train_on_all_models(X_train, X_test, y_train, y_test,problem_num):
         linear_regression,
         random_forest,
         gradient_boosting,
-        # adaboost,
-        # neural_network
+        adaboost,
+        neural_network
     ]
+    if problem_num == 1:
+        
+        trip_id_unique_station_test = X_test["trip_id_unique_station"]
+        X_test = X_test.drop(columns=["trip_id_unique_station"])
+        X_train = X_train.drop(columns=["trip_id_unique_station"])
     
-    trip_id_unique_station_test = X_test["trip_id_unique_station"]
-    X_test = X_test.drop(columns=["trip_id_unique_station"])
-    X_train = X_train.drop(columns=["trip_id_unique_station"])
-   
+    if problem_num == 2:
+        trip_id_unique_station_test = X_test["trip_id_unique"]
+        X_test = X_test.drop(columns=["trip_id_unique"])
+        X_train = X_train.drop(columns=["trip_id_unique"])
+
+
     for model in models:
         y_test, y_pred = model(X_train, X_test, y_train, y_test)
         model_name = model.__name__
